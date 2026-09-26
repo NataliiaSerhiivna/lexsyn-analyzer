@@ -73,17 +73,14 @@ public class ErrorExplainer {
             return entry(ErrorType.MISSING_DIGIT_AFTER_DOT, "відсутня цифра після десяткової крапки");
         }
 
-        // --- '*' або '/' одразу після відкриваючої дужки ---
         if ((state == State.OB || state == State.FNOB) && cls == CharClass.MUL_DIV) {
             return entry(ErrorType.MUL_DIV_AFTER_OPEN_BRACKET, "операція * або / одразу після відкриваючої дужки");
         }
 
-        // --- Порожні "звичайні" дужки (не виклик функції) ---
         if (state == State.OB && cls == CharClass.CLOSE_BRACKET) {
             return entry(ErrorType.EMPTY_BRACKETS, "порожні дужки");
         }
 
-        // --- Відсутність операції між закритою дужкою і наступним операндом ---
         if (state == State.CB && OPERAND_START.contains(cls)) {
             return entry(ErrorType.MISSING_OPERATOR_BETWEEN,
                     "відсутня операція перед наступним операндом");
