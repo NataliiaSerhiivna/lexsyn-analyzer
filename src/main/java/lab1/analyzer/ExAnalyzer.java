@@ -15,11 +15,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.EnumSet;
+import java.util.Set;
 
 public class ExAnalyzer {
 
     private final TransitionTable table = new TransitionTable();
     private final ErrorExplainer explainer = new ErrorExplainer();
+    private static final Set<State> TOKEN_STATES = EnumSet.of(State.V_FN, State.C, State.CD, State.CDC);
+    private static final Set<CharClass> TOKEN_CONTINUATION = EnumSet.of(CharClass.LETTER, CharClass.DIGIT, CharClass.DOT);
 
     public AnalysisResult analyze(String expression) {
         BracketChecker brackets = new BracketChecker();
@@ -31,14 +35,23 @@ public class ExAnalyzer {
 
         int i = 0;
         int n = expression.length();
+        boolean spaceInsideToken = false;
         while (i < n) {
             char ch = expression.charAt(i);
             CharClass cls = CharClassifier.classify(ch);
 
             if (cls == CharClass.SPACE) {
+                if (TOKEN_STATES.contains(state)) {
+                    spaceInsideToken = true;
+                }
                 i++;
                 continue;
             }
+
+            if (spaceInsideToken && TOKEN_CONTINUATION.contains(cls)) {
+                fsmErrors.add(spaceError(state, cls, i));
+            }
+            spaceInsideToken = false;
 
             if (cls == CharClass.UNKNOWN) {
                 fsmErrors.add(new AnalysisError(i, ErrorType.UNKNOWN_SYMBOL, "неможливий символ '" + ch + "'"));
@@ -132,5 +145,17 @@ public class ExAnalyzer {
             message += ", " + explainer.chooseOperandWord(tokenBuilder.lastOperandToken());
         }
         return new AnalysisError(endPos, ErrorType.UNTERMINATED_EXPRESSION, message);
+    }
+    private AnalysisError spaceError(State state, CharClass cls, int pos) {
+        if (state == State.CD) {
+            return new AnalysisError(pos, ErrorType.MISSING_DIGIT_AFTER_DOT,
+                    "пробіл між десятковою крапкою і цифрою");
+        }
+        if (cls == CharClass.DOT) {
+            return new AnalysisError(pos, ErrorType.SECOND_DECIMAL_DOT,
+                    "пробіл всередині числа перед десятковою крапкою");
+        }
+        return new AnalysisError(pos, ErrorType.MISSING_OPERATOR_BETWEEN,
+                "відсутня операція між операндами");
     }
 }
